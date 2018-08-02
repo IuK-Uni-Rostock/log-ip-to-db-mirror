@@ -1,0 +1,11 @@
+.idea/*
+migrate_db/__pycache__/
+
+# prevent configuration details from committing
+config/*
+
+# prevent data from committing
+data/*
+
+# prevent to commit venv
+venv/*
