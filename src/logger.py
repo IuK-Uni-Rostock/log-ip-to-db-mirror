@@ -156,11 +156,12 @@ class DatabaseWriter(Thread):
         while True:
             telegram = self.__telegram_queue.get()
             if telegram is None:
+                self.__cursor.close()
+                self.__con.close()
                 break
             while self.__insert_telegram(telegram) == False:
                 sleep(5) # wait 5 sec, then try again
                 self.__connect_db() # reconnect on insert failure
-            self.__insert_telegram(telegram)
             self.__telegram_queue.task_done()
 
     def __connect_db(self):
@@ -171,19 +172,20 @@ class DatabaseWriter(Thread):
             self.__print("Failed to connect to database: {}".format(err))
 
     def __insert_telegram(self, telegram):
-        if self.__cursor is None:
+        if self.__con.is_connected is False:
             return False
 
-        stmt = 'INSERT INTO %s (timestamp, source_addr, destination_addr, apci, tpci, priority,' \
-            'repeated, hop_count, apdu, payload_length, cemi, payload_data, is_manipulated) ' \
-            'VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);'
+        stmt = "INSERT INTO {0} (timestamp, source_addr, destination_addr, apci, tpci, priority," \
+            "repeated, hop_count, apdu, payload_length, cemi, payload_data, is_manipulated) " \
+            "VALUES ('{1}', '{2}', '{3}', '{4}', '{5}', '{6}', '{7}', '{8}', '{9}', '{10}', '{11}', '{12}', '{13}');"
 
         try:
             self.__cursor.execute(stmt.format(db_table,
-                telegram.timestamp, telegram.source_addr, telegram.destination_addr, telegram.apci, telegram.tpci,
-                telegram.priority, telegram.repeated, telegram.hop_count, telegram.apdu, telegram.payload_length,
-                telegram.cemi, telegram.payload_data, telegram.is_manipulated
+                str(telegram.timestamp), str(telegram.source_addr), str(telegram.destination_addr), str(telegram.apci), str(telegram.tpci),
+                str(telegram.priority), str(telegram.repeated), telegram.hop_count, str(telegram.apdu), telegram.payload_length,
+                str(telegram.cemi), str(telegram.payload_data), telegram.is_manipulated
             ))
+            self.__con.commit()
             return True
         except mysql.connector.Error as err:
             self.__print("Failed to insert telegram: {}".format(err))
