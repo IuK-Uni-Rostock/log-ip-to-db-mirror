@@ -5,6 +5,8 @@ import baos_knx_parser as knx_parser
 from ctypes import CDLL, CFUNCTYPE, POINTER, c_int, c_void_p, c_uint, c_ubyte, pointer, create_string_buffer
 from threading import Thread
 from datetime import datetime
+from time import sleep
+from sys import exit
 from config import db_cfg, db_table, knx_gateway_ip
 from queue import Queue
 
@@ -47,27 +49,23 @@ class BusMonitor(Thread):
         error_callback = self.ERROR_CALLBACK(self.__on_error_callback)
         self.kdrive.kdrive_register_error_callback(error_callback, None)
 
-        ap = self.kdrive.kdrive_ap_create()
+        self.ap = self.kdrive.kdrive_ap_create()
 
-        if ap == -1:
+        if self.ap == -1:
             print("Failed to create access port")
             exit(1)
 
         event_callback = self.EVENT_CALLBACK(self.__on_event_callback)
-        self.kdrive.kdrive_set_event_callback(ap, event_callback, None)
+        self.kdrive.kdrive_set_event_callback(self.ap, event_callback, None)
 
-        if self.kdrive.kdrive_ap_open_ip(ap, knx_gateway_ip) > 0:
+        if self.kdrive.kdrive_ap_open_ip(self.ap, knx_gateway_ip) > 0:
             print("Failed to open KNX IP gateway")
-            self.kdrive.kdrive_ap_release(ap)
+            self.kdrive.kdrive_ap_release(self.ap)
             exit(1)
 
         key = c_int(0)
         telegram_callback = self.TELEGRAM_CALLBACK(self.__on_telegram_callback)
-        self.kdrive.kdrive_ap_register_telegram_callback(ap, telegram_callback, None, pointer(key))
-        i = raw_input('')
-
-        self.kdrive.kdrive_ap_close(ap)
-        self.kdrive.kdrive_ap_release(ap)
+        self.kdrive.kdrive_ap_register_telegram_callback(self.ap, telegram_callback, None, pointer(key))
 
     def __on_telegram_callback(self, telegram, telegram_len, user_data):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
@@ -100,6 +98,11 @@ class BusMonitor(Thread):
         self.kdrive.kdrive_get_error_message(e, str, len)
         print('kdrive error {0} {1}'.format(hex(e), str.value))
 
+    def stop(self):
+        print("Stopping bus monitor")
+        self.kdrive.kdrive_ap_close(self.ap)
+        self.kdrive.kdrive_ap_release(self.ap)
+
 class DatabaseWriter(Thread):
     def __init__(self, queue):
         Thread.__init__(self)
@@ -110,7 +113,10 @@ class DatabaseWriter(Thread):
         self.__connect_db()
         while True:
             telegram = self.__telegram_queue.get()
+            if telegram is None:
+                break
             while self.__insert_telegram(telegram) == False:
+                sleep(5) # wait 5 sec, then try again
                 self.__connect_db() # reconnect on insert failure
             self.__insert_telegram(telegram)
             self.__telegram_queue.task_done()
@@ -141,6 +147,11 @@ class DatabaseWriter(Thread):
             print("Failed to insert telegram: {}".format(err))
             return False
 
+    def stop(self):
+        print("Stopping database writer")
+        # add stop-item to queue
+        self.__telegram_queue.put(None)
+
 def main():
     telegram_queue = Queue()
     threads = []
@@ -153,7 +164,10 @@ def main():
     threads.append(busMon)
     threads.append(dbWriter)
 
-    #TODO: Add a way to gracefully stop this
+    i = input('Press [Enter] to exit the application ...\n')
+    busMon.stop()
+    dbWriter.stop()
+
     for t in threads:
         t.join()
     exit(0)
