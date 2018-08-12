@@ -168,6 +168,7 @@ class DatabaseWriter(Thread):
         try:
             self.__con = mysql.connector.connect(**db_cfg)
             self.__cursor = self.__con.cursor()
+            self.__print("Successfully connected to database")
         except mysql.connector.Error as err:
             self.__print("Failed to connect to database: {}".format(err))
 
