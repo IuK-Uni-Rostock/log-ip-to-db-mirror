@@ -67,9 +67,10 @@ class BusMonitor(Thread):
             self.__print("Failed to create access port")
             exit(1)
 
-        event_callback = self.EVENT_CALLBACK(self.__on_event_callback)
-        self.kdrive.kdrive_set_event_callback(self.ap, event_callback, None)
+        #event_callback = self.EVENT_CALLBACK(self.__on_event_callback)
+        #self.kdrive.kdrive_set_event_callback(self.ap, event_callback, None)
 
+        #if self.kdrive.kdrive_ap_open_usb(self.ap, 0):
         if self.kdrive.kdrive_ap_open_ip(self.ap, knx_gateway_ip) > 0:
             self.__print("Failed to open KNX IP gateway")
             self.kdrive.kdrive_ap_release(self.ap)
@@ -81,8 +82,10 @@ class BusMonitor(Thread):
 
     def __on_telegram_callback(self, telegram, telegram_len, user_data):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
-        cemi = bytearray(telegram)
-        parsed_telegram = knx_parser.parse_knx_telegram(cemi)
+        cemi = ''
+        for i in range(telegram_len):
+            cemi = cemi + '{:02X}'.format(telegram[i])
+        parsed_telegram = knx_parser.parse_knx_telegram(bytes.fromhex(cemi))
 
         t = Telegram()
         t.timestamp = timestamp
