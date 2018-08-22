@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.6
+#!/usr/bin/env python3
 import sys
 import os
 import argparse
@@ -176,9 +176,6 @@ pmonitor.add_argument(
 pmonitor.add_argument(
     '--group-monitor', action='store_true', dest='group_monitor_mode',
     default=False, help='monitor group- instead of bus-messages via KNXnet/IP gateway')
-pmonitor.add_argument(
-    '--db-config', action='store', type=str, dest='db_config',
-    default=None, help='path to database configuration')
 
 
 def main():
@@ -228,8 +225,7 @@ def main():
                 iface=args.iface))
         elif args.cmd == 'monitor':
             loop.run_until_complete(knxmap.monitor(
-                group_monitor_mode=args.group_monitor_mode,
-                db_config=args.db_config))
+                group_monitor_mode=args.group_monitor_mode))
         elif args.cmd == 'brute':
             bus_target = KnxTargets(args.bus_target)
             loop.run_until_complete(knxmap.brute(

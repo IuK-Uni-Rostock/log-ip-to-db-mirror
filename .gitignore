@@ -1,5 +1,9 @@
 .idea/*
-migrate_db/__pycache__/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
 
 # prevent configuration details from committing
 config/*
