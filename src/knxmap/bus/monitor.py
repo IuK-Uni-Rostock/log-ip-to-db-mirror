@@ -9,7 +9,7 @@ import baos_knx_parser as knx_parser
 
 from knxmap.database import DatabaseWriter
 from knxmap.bus.tunnel import KnxTunnelConnection
-from knxmap.data.telegram import Telegram
+from knxmap.data.telegram import Telegram, AckTelegram
 from knxmap.data.constants import *
 from knxmap.messages import parse_message, KnxConnectRequest, KnxConnectResponse, \
                             KnxTunnellingRequest, KnxTunnellingAck, KnxConnectionStateResponse, \
@@ -72,6 +72,7 @@ class KnxBusMonitor(KnxTunnelConnection):
                 self.future.set_result(None)
         elif isinstance(knx_message, KnxTunnellingRequest):
             self.print_message(knx_message)
+            self.enqueue_message(knx_message)
             if CEMI_PRIMITIVES[knx_message.cemi.message_code] == 'L_Data.con' or \
                     CEMI_PRIMITIVES[knx_message.cemi.message_code] == 'L_Data.ind' or \
                     CEMI_PRIMITIVES[knx_message.cemi.message_code] == 'L_Busmon.ind':
@@ -82,6 +83,7 @@ class KnxBusMonitor(KnxTunnelConnection):
                 self.transport.sendto(tunnelling_ack.get_message())
         elif isinstance(knx_message, KnxTunnellingAck):
             self.print_message(knx_message)
+            #self.enqueue_message(knx_message)
         elif isinstance(knx_message, KnxConnectionStateResponse):
             # After receiving a CONNECTIONSTATE_RESPONSE schedule the next one
             self.loop.call_later(50, self.knx_keep_alive)
@@ -131,25 +133,31 @@ class KnxBusMonitor(KnxTunnelConnection):
                 msg_code=CEMI_PRIMITIVES.get(cemi.message_code),
                 timestamp=codecs.encode(cemi.additional_information.get('timestamp'), 'hex'),
                 raw_frame=codecs.encode(cemi.raw_frame, 'hex'))
-        if self.db_config is not None and not self.group_monitor:
-            LOGGER.info(cemi.raw_frame)
-            LOGGER.info(codecs.encode(cemi.raw_frame, 'hex'))
-            parsed_telegram = knx_parser.parse_knx_telegram(cemi.raw_frame)
-            t = Telegram()
-            t.timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
-            LOGGER.info(cemi.additional_information.get('timestamp'))
-            t.source_addr = parsed_telegram.src
-            t.destination_addr = parsed_telegram.dest
-            t.apci = parsed_telegram.apci
-            t.tpci = parsed_telegram.tpci
-            t.priority = parsed_telegram.priority
-            t.repeated = parsed_telegram.repeat
-            t.hop_count = parsed_telegram.hop_count
-            t.apdu = parsed_telegram.payload.hex()
-            t.payload_length = parsed_telegram.payload_length
-            t.cemi = codecs.encode(cemi.raw_frame, 'hex')
-            t.payload_data = parsed_telegram.payload_data
-            t.attack_type_id = 'NULL'
-            self.telegram_queue.put(t)
 
         LOGGER.info(format)
+
+
+    def enqueue_message(self, message):
+        if self.db_config is not None and not self.group_monitor:
+            parsed_telegram = knx_parser.parse_knx_telegram(message.cemi.raw_frame)
+            if isinstance(parsed_telegram, knx_parser.KnxBaseTelegram):
+                t = Telegram()
+                t.timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+                t.source_addr = parsed_telegram.src
+                t.destination_addr = parsed_telegram.dest
+                t.apci = parsed_telegram.apci
+                t.tpci = parsed_telegram.tpci
+                t.priority = parsed_telegram.priority
+                t.repeated = parsed_telegram.repeat
+                t.hop_count = parsed_telegram.hop_count
+                t.apdu = parsed_telegram.payload.hex()
+                t.payload_length = parsed_telegram.payload_length
+                t.cemi = message.cemi.raw_frame.hex()
+                t.payload_data = parsed_telegram.payload_data
+                self.telegram_queue.put(t)
+            else:
+                t = AckTelegram()
+                t.timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+                t.apci = parsed_telegram.acknowledgement
+                t.cemi = message.cemi.raw_frame.hex()
+                self.telegram_queue.put(t)

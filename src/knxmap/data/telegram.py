@@ -1,4 +1,4 @@
-__all__ = ['Telegram']
+__all__ = ['Telegram', 'AckTelegram']
 
 class Telegram(object):
     sequence_number = None
@@ -15,5 +15,10 @@ class Telegram(object):
     cemi = None
     payload_data = None
     is_manipulated = None
-    attack_type_id = None
 
+class AckTelegram(object):
+    sequence_number = None
+    timestamp = None
+    apci = None
+    cemi = None
+    is_manipulated = None

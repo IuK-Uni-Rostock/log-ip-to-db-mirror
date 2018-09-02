@@ -5,6 +5,8 @@ from threading import Thread
 from time import sleep
 from queue import Queue
 
+from knxmap.data.telegram import Telegram, AckTelegram
+
 __all__ = ['DatabaseWriter']
 
 LOGGER = logging.getLogger(__name__)
@@ -41,20 +43,36 @@ class DatabaseWriter(Thread):
     def __insert_telegram(self, telegram):
         if self.__con.is_connected is False:
             return False
+        
+        if isinstance(telegram, Telegram):
+            stmt = "INSERT INTO {0} (timestamp, source_addr, destination_addr, apci, tpci, priority, " \
+                   "repeated, hop_count, apdu, payload_length, cemi, payload_data, is_manipulated) " \
+                   "VALUES ('{1}', '{2}', '{3}', '{4}', '{5}', '{6}', '{7}', '{8}', '{9}', '{10}', '{11}', '{12}', '{13}');"
 
-        stmt = "INSERT INTO {0} (timestamp, source_addr, destination_addr, apci, tpci, priority," \
-            "repeated, hop_count, apdu, payload_length, cemi, payload_data, is_manipulated) " \
-            "VALUES ('{1}', '{2}', '{3}', '{4}', '{5}', '{6}', '{7}', '{8}', '{9}', '{10}', '{11}', '{12}', '{13}');"
+            try:
+                stmt = stmt.format(self.__db_config.db_table,
+                       str(telegram.timestamp), str(telegram.source_addr), str(telegram.destination_addr), str(telegram.apci), str(telegram.tpci),
+                       str(telegram.priority), str(telegram.repeated), telegram.hop_count, str(telegram.apdu), telegram.payload_length,
+                       str(telegram.cemi), str(telegram.payload_data), telegram.is_manipulated)
+                LOGGER.debug(stmt)
+                self.__cursor.execute(stmt)
+                self.__con.commit()
+                return True
+            except mysql.connector.Error as err:
+                LOGGER.error("Failed to insert telegram: {}".format(err))
+                return False
+        else:
+            # insert acknowledgement telegram to database
+            stmt = "INSERT INTO {0} (timestamp, apci, cemi, is_manipulated) " \
+                   "VALUES ('{1}', '{2}', '{3}', '{4}');"
 
-        try:
-            self.__cursor.execute(stmt.format(self.__db_config.db_table,
-                str(telegram.timestamp), str(telegram.source_addr), str(telegram.destination_addr), str(telegram.apci), str(telegram.tpci),
-                str(telegram.priority), str(telegram.repeated), telegram.hop_count, str(telegram.apdu), telegram.payload_length,
-                str(telegram.cemi), str(telegram.payload_data), telegram.is_manipulated
-            ))
-            self.__con.commit()
-            return True
-        except mysql.connector.Error as err:
-            LOGGER.error("Failed to insert telegram: {}".format(err))
-            return False
-
+            try:
+                stmt = stmt.format(self.__db_config.db_table,
+                       str(telegram.timestamp), str(telegram.apci), str(telegram.cemi), telegram.is_manipulated)
+                LOGGER.debug(stmt)
+                self.__cursor.execute(stmt)
+                self.__con.commit()
+                return True
+            except mysql.connector.Error as err:
+                LOGGER.error("Failed to insert telegram: {}".format(err))
+                return False
