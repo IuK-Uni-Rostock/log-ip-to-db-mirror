@@ -9,7 +9,7 @@ import baos_knx_parser as knx_parser
 
 from knxmap.database import DatabaseWriter
 from knxmap.bus.tunnel import KnxTunnelConnection
-from knxmap.data.telegram import Telegram, AckTelegram
+from knxmap.data.telegram import Telegram, AckTelegram, UnknownTelegram
 from knxmap.data.constants import *
 from knxmap.messages import parse_message, KnxConnectRequest, KnxConnectResponse, \
                             KnxTunnellingRequest, KnxTunnellingAck, KnxConnectionStateResponse, \
@@ -139,25 +139,32 @@ class KnxBusMonitor(KnxTunnelConnection):
 
     def enqueue_message(self, message):
         if self.db_config is not None and not self.group_monitor:
-            parsed_telegram = knx_parser.parse_knx_telegram(message.cemi.raw_frame)
-            if isinstance(parsed_telegram, knx_parser.KnxBaseTelegram):
-                t = Telegram()
-                t.timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
-                t.source_addr = parsed_telegram.src
-                t.destination_addr = parsed_telegram.dest
-                t.apci = parsed_telegram.apci
-                t.tpci = parsed_telegram.tpci
-                t.priority = parsed_telegram.priority
-                t.repeated = parsed_telegram.repeat
-                t.hop_count = parsed_telegram.hop_count
-                t.apdu = parsed_telegram.payload.hex()
-                t.payload_length = parsed_telegram.payload_length
-                t.cemi = message.cemi.raw_frame.hex()
-                t.payload_data = parsed_telegram.payload_data
-                self.telegram_queue.put(t)
-            else:
-                t = AckTelegram()
-                t.timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
-                t.apci = parsed_telegram.acknowledgement
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+            try:
+                parsed_telegram = knx_parser.parse_knx_telegram(message.cemi.raw_frame)
+                if isinstance(parsed_telegram, knx_parser.KnxBaseTelegram):
+                    t = Telegram()
+                    t.timestamp = timestamp
+                    t.source_addr = parsed_telegram.src
+                    t.destination_addr = parsed_telegram.dest
+                    t.apci = parsed_telegram.apci
+                    t.tpci = parsed_telegram.tpci
+                    t.priority = parsed_telegram.priority
+                    t.repeated = parsed_telegram.repeat
+                    t.hop_count = parsed_telegram.hop_count
+                    t.apdu = parsed_telegram.payload.hex()
+                    t.payload_length = parsed_telegram.payload_length
+                    t.cemi = message.cemi.raw_frame.hex()
+                    t.payload_data = parsed_telegram.payload_data
+                    self.telegram_queue.put(t)
+                else:
+                    t = AckTelegram()
+                    t.timestamp = timestamp
+                    t.apci = parsed_telegram.acknowledgement
+                    t.cemi = message.cemi.raw_frame.hex()
+                    self.telegram_queue.put(t)
+            except Exception as ex:
+                t = UnknownTelegram()
+                t.timestamp = timestamp
                 t.cemi = message.cemi.raw_frame.hex()
                 self.telegram_queue.put(t)

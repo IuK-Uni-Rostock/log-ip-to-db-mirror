@@ -5,7 +5,7 @@ from threading import Thread
 from time import sleep
 from queue import Queue
 
-from knxmap.data.telegram import Telegram, AckTelegram
+from knxmap.data.telegram import Telegram, AckTelegram, UnknownTelegram
 
 __all__ = ['DatabaseWriter']
 
@@ -46,14 +46,29 @@ class DatabaseWriter(Thread):
         
         if isinstance(telegram, Telegram):
             stmt = "INSERT INTO {0} (timestamp, source_addr, destination_addr, apci, tpci, priority, " \
-                   "repeated, hop_count, apdu, payload_length, cemi, payload_data, is_manipulated) " \
-                   "VALUES ('{1}', '{2}', '{3}', '{4}', '{5}', '{6}', '{7}', '{8}', '{9}', '{10}', '{11}', '{12}', '{13}');"
+                   "repeated, hop_count, apdu, payload_length, cemi, payload_data, is_manipulated, sensor_addr) " \
+                   "VALUES ('{1}', '{2}', '{3}', '{4}', '{5}', '{6}', '{7}', '{8}', '{9}', '{10}', '{11}', '{12}', '{13}', '{14}');"
 
             try:
                 stmt = stmt.format(self.__db_config.db_table,
                        str(telegram.timestamp), str(telegram.source_addr), str(telegram.destination_addr), str(telegram.apci), str(telegram.tpci),
                        str(telegram.priority), str(telegram.repeated), telegram.hop_count, str(telegram.apdu), telegram.payload_length,
-                       str(telegram.cemi), str(telegram.payload_data), telegram.is_manipulated)
+                       str(telegram.cemi), str(telegram.payload_data), telegram.is_manipulated, self.__db_config.gateway_address)
+                LOGGER.debug(stmt)
+                self.__cursor.execute(stmt)
+                self.__con.commit()
+                return True
+            except mysql.connector.Error as err:
+                LOGGER.error("Failed to insert telegram: {}".format(err))
+                return False
+        elif isinstance(telegram, AckTelegram):
+            # insert acknowledgement telegram to database
+            stmt = "INSERT INTO {0} (timestamp, apci, cemi, is_manipulated, sensor_addr) " \
+                   "VALUES ('{1}', '{2}', '{3}', '{4}', '{5}');"
+
+            try:
+                stmt = stmt.format(self.__db_config.db_table,
+                       str(telegram.timestamp), str(telegram.apci), str(telegram.cemi), telegram.is_manipulated, self.__db_config.gateway_address)
                 LOGGER.debug(stmt)
                 self.__cursor.execute(stmt)
                 self.__con.commit()
@@ -62,13 +77,10 @@ class DatabaseWriter(Thread):
                 LOGGER.error("Failed to insert telegram: {}".format(err))
                 return False
         else:
-            # insert acknowledgement telegram to database
-            stmt = "INSERT INTO {0} (timestamp, apci, cemi, is_manipulated) " \
-                   "VALUES ('{1}', '{2}', '{3}', '{4}');"
-
+            # insert unknown telegrams to different table
+            stmt = "INSERT INTO unknown_telegram (timestamp, cemi, sensor_addr) VALUES ('{0}', '{1}', '{2}')"
             try:
-                stmt = stmt.format(self.__db_config.db_table,
-                       str(telegram.timestamp), str(telegram.apci), str(telegram.cemi), telegram.is_manipulated)
+                stmt = stmt.format(str(telegram.timestamp), str(telegram.cemi), self.__db_config.gateway_address)
                 LOGGER.debug(stmt)
                 self.__cursor.execute(stmt)
                 self.__con.commit()

@@ -7,4 +7,4 @@ db_cfg = {
 }
 
 db_table = '<insert db table>'
-
+gateway_address = '<insert gateway address>'

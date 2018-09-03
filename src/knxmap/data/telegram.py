@@ -1,4 +1,4 @@
-__all__ = ['Telegram', 'AckTelegram']
+__all__ = ['Telegram', 'AckTelegram', 'UnknownTelegram']
 
 class Telegram(object):
     sequence_number = None
@@ -22,3 +22,8 @@ class AckTelegram(object):
     apci = None
     cemi = None
     is_manipulated = None
+
+class UnknownTelegram(object):
+    sequence_number = None
+    timestamp = None
+    cemi = None
