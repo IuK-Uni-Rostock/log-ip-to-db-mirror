@@ -43,7 +43,7 @@ class DatabaseWriter(Thread):
     def __insert_telegram(self, telegram):
         if self.__con.is_connected is False:
             return False
-        
+
         if isinstance(telegram, Telegram):
             stmt = "INSERT INTO {0} (timestamp, source_addr, destination_addr, apci, tpci, priority, " \
                    "repeated, hop_count, apdu, payload_length, cemi, payload_data, is_manipulated, sensor_addr) " \
@@ -74,7 +74,7 @@ class DatabaseWriter(Thread):
                 self.__con.commit()
                 return True
             except mysql.connector.Error as err:
-                LOGGER.error("Failed to insert telegram: {}".format(err))
+                LOGGER.error("Failed to insert ack telegram: {}".format(err))
                 return False
         else:
             # insert unknown telegrams to different table
@@ -86,5 +86,5 @@ class DatabaseWriter(Thread):
                 self.__con.commit()
                 return True
             except mysql.connector.Error as err:
-                LOGGER.error("Failed to insert telegram: {}".format(err))
+                LOGGER.error("Failed to insert unknown telegram: {}".format(err))
                 return False

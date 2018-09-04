@@ -164,6 +164,7 @@ class KnxBusMonitor(KnxTunnelConnection):
                     t.cemi = message.cemi.raw_frame.hex()
                     self.telegram_queue.put(t)
             except Exception as ex:
+                LOGGER.error("Failed to parse telegram: {}".format(str(message.cemi.raw_frame.hex())))
                 t = UnknownTelegram()
                 t.timestamp = timestamp
                 t.cemi = message.cemi.raw_frame.hex()
