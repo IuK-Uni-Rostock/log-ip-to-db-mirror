@@ -11,8 +11,8 @@
 2. `pip3 install --user mysql-connector`
 
 ## 4. Add to autostart
-1. Edit crontab with `crontab -e` (user the user you want to run the logger with)
-2. Add these lines:
+1. Edit crontab with `crontab -e`
+2. Add these lines (it might be necessary to edit the script path):
 
 ```sh
 PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin:/usr/local/sbin
