@@ -5,6 +5,7 @@ import sys
 from queue import Queue
 from datetime import datetime
 
+import bitstruct
 import baos_knx_parser as knx_parser
 
 from knxmap.database import DatabaseWriter
@@ -72,7 +73,7 @@ class KnxBusMonitor(KnxTunnelConnection):
                 self.future.set_result(None)
         elif isinstance(knx_message, KnxTunnellingRequest):
             self.print_message(knx_message)
-            self.enqueue_message(knx_message)
+            self.enqueue_message(data, knx_message)
             if CEMI_PRIMITIVES[knx_message.cemi.message_code] == 'L_Data.con' or \
                     CEMI_PRIMITIVES[knx_message.cemi.message_code] == 'L_Data.ind' or \
                     CEMI_PRIMITIVES[knx_message.cemi.message_code] == 'L_Busmon.ind':
@@ -137,11 +138,17 @@ class KnxBusMonitor(KnxTunnelConnection):
         LOGGER.info(format)
 
 
-    def enqueue_message(self, message):
+    def enqueue_message(self, data, message):
         if self.db_config is not None and not self.group_monitor:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
             try:
-                parsed_telegram = knx_parser.parse_knx_telegram(message.cemi.raw_frame)
+                # remove additional cEMI data
+                header_len = bitstruct.unpack('>u8', data[0:1])[0]
+                add_len = bitstruct.unpack('>u8', data[header_len:header_len+1])[0]
+                cemi = data[header_len+add_len:]
+
+                # parse cEMI and create Telegram/AckTelegram object
+                parsed_telegram = knx_parser.parse_knx_telegram(cemi)
                 if isinstance(parsed_telegram, knx_parser.KnxBaseTelegram):
                     t = Telegram()
                     t.timestamp = timestamp
@@ -154,14 +161,14 @@ class KnxBusMonitor(KnxTunnelConnection):
                     t.hop_count = parsed_telegram.hop_count
                     t.apdu = parsed_telegram.payload.hex()
                     t.payload_length = parsed_telegram.payload_length
-                    t.cemi = message.cemi.raw_frame.hex()
+                    t.cemi = cemi.hex()
                     t.payload_data = parsed_telegram.payload_data
                     self.telegram_queue.put(t)
                 else:
                     t = AckTelegram()
                     t.timestamp = timestamp
                     t.apci = parsed_telegram.acknowledgement
-                    t.cemi = message.cemi.raw_frame.hex()
+                    t.cemi = cemi.hex()
                     self.telegram_queue.put(t)
             except Exception as ex:
                 LOGGER.error("Failed to parse telegram: {}".format(str(message.cemi.raw_frame.hex())))

@@ -7,7 +7,7 @@
 2. `git clone https://git.informatik.uni-rostock.de/iuk/security-projects/software/log-ip-to-db.git`
 
 ## 3. Install dependencies
-1. `pip3 install --user -e git+https://github.com/FreakyBytes/BaosKnxParser.git`
+1. `pip3 install --user git+https://git.informatik.uni-rostock.de/iuk/security-projects/software/knx-parser.git`
 2. `pip3 install --user mysql-connector`
 
 ## 4. Add to autostart
