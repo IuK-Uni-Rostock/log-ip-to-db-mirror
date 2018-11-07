@@ -5,25 +5,32 @@ class Telegram(object):
     timestamp = None
     source_addr = None
     destination_addr = None
-    apci = None
-    tpci = None
+    extended_frame = None
     priority = None
-    repeated = None
+    repeat = None
+    ack_req = None
+    confirm = None
+    system_broadcast = None
     hop_count = None
-    apdu = None
-    payload_length = None
-    cemi = None
+    tpci = None
+    tpci_sequence = None
+    apci = None
     payload_data = None
+    payload_length = None
     is_manipulated = None
+    attack_type_id = None
+    sensor_addr = None
 
 class AckTelegram(object):
     sequence_number = None
     timestamp = None
     apci = None
-    cemi = None
     is_manipulated = None
+    attack_type_id = None
+    sensor_addr = None
 
 class UnknownTelegram(object):
     sequence_number = None
     timestamp = None
     cemi = None
+    sensor_addr = None

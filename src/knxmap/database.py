@@ -45,15 +45,16 @@ class DatabaseWriter(Thread):
             return False
 
         if isinstance(telegram, Telegram):
-            stmt = "INSERT INTO {0} (timestamp, source_addr, destination_addr, apci, tpci, priority, " \
-                   "repeated, hop_count, apdu, payload_length, cemi, payload_data, is_manipulated, sensor_addr) " \
-                   "VALUES ('{1}', '{2}', '{3}', '{4}', '{5}', '{6}', '{7}', '{8}', '{9}', '{10}', '{11}', '{12}', '{13}', '{14}');"
+            stmt = "INSERT INTO {0} (timestamp, source_addr, destination_addr, extended_frame, priority, `repeat`, " \
+                   "ack_req, confirm, system_broadcast, hop_count, tpci, tpci_sequence, apci, payload_data, " \
+                   "payload_length, is_manipulated, sensor_addr) " \
+                   "VALUES ('{1}', '{2}', '{3}', '{4}', '{5}', '{6}', '{7}', '{8}', '{9}', '{10}', '{11}', '{12}', '{13}', '{14}', '{15}', '{16}', '{17}');"
 
             try:
                 stmt = stmt.format(self.__db_config.db_table,
-                       str(telegram.timestamp), str(telegram.source_addr), str(telegram.destination_addr), str(telegram.apci), str(telegram.tpci),
-                       str(telegram.priority), str(telegram.repeated), telegram.hop_count, str(telegram.apdu), telegram.payload_length,
-                       str(telegram.cemi), str(telegram.payload_data), telegram.is_manipulated, self.__db_config.gateway_address)
+                       telegram.timestamp, telegram.source_addr, telegram.destination_addr, telegram.extended_frame, telegram.priority, telegram.repeat,
+                       telegram.ack_req, telegram.confirm, telegram.system_broadcast, telegram.hop_count, telegram.tpci, telegram.tpci_sequence,
+                       telegram.apci, telegram.payload_data, telegram.payload_length, telegram.is_manipulated, self.__db_config.gateway_address)
                 LOGGER.debug(stmt)
                 self.__cursor.execute(stmt)
                 self.__con.commit()
@@ -63,12 +64,11 @@ class DatabaseWriter(Thread):
                 return False
         elif isinstance(telegram, AckTelegram):
             # insert acknowledgement telegram to database
-            stmt = "INSERT INTO {0} (timestamp, apci, cemi, is_manipulated, sensor_addr) " \
-                   "VALUES ('{1}', '{2}', '{3}', '{4}', '{5}');"
+            stmt = "INSERT INTO {0} (timestamp, apci, is_manipulated, sensor_addr) " \
+                   "VALUES ('{1}', '{2}', '{3}', '{4}');"
 
             try:
-                stmt = stmt.format(self.__db_config.db_table,
-                       str(telegram.timestamp), str(telegram.apci), str(telegram.cemi), telegram.is_manipulated, self.__db_config.gateway_address)
+                stmt = stmt.format(self.__db_config.db_table, telegram.timestamp, telegram.apci, telegram.is_manipulated, self.__db_config.gateway_address)
                 LOGGER.debug(stmt)
                 self.__cursor.execute(stmt)
                 self.__con.commit()
@@ -80,7 +80,7 @@ class DatabaseWriter(Thread):
             # insert unknown telegrams to different table
             stmt = "INSERT INTO unknown_telegram (timestamp, cemi, sensor_addr) VALUES ('{0}', '{1}', '{2}')"
             try:
-                stmt = stmt.format(str(telegram.timestamp), str(telegram.cemi), self.__db_config.gateway_address)
+                stmt = stmt.format(telegram.timestamp, telegram.cemi, self.__db_config.gateway_address)
                 LOGGER.debug(stmt)
                 self.__cursor.execute(stmt)
                 self.__con.commit()

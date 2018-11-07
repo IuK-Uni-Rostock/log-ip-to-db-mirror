@@ -151,28 +151,32 @@ class KnxBusMonitor(KnxTunnelConnection):
                 parsed_telegram = knx_parser.parse_knx_telegram(cemi)
                 if isinstance(parsed_telegram, knx_parser.KnxBaseTelegram):
                     t = Telegram()
-                    t.timestamp = timestamp
-                    t.source_addr = parsed_telegram.src
-                    t.destination_addr = parsed_telegram.dest
-                    t.apci = parsed_telegram.apci
-                    t.tpci = parsed_telegram.tpci
-                    t.priority = parsed_telegram.priority
-                    t.repeated = parsed_telegram.repeat
-                    t.hop_count = parsed_telegram.hop_count
-                    t.apdu = parsed_telegram.payload.hex()
-                    t.payload_length = parsed_telegram.payload_length
-                    t.cemi = cemi.hex()
-                    t.payload_data = parsed_telegram.payload_data
+                    t.timestamp = str(timestamp)
+                    t.source_addr = str(parsed_telegram.src)
+                    t.destination_addr = str(parsed_telegram.dest)
+                    t.extended_frame = 1 if parsed_telegram.frame_type == knx_parser.const.FrameType.EXTENDED_FRAME else 0
+                    t.priority = str(parsed_telegram.priority)
+                    t.repeat = int(parsed_telegram.repeat)
+                    t.ack_req = int(parsed_telegram.ack_req)
+                    t.confirm = int(parsed_telegram.confirm)
+                    t.system_broadcast = int(parsed_telegram.system_broadcast)
+                    t.hop_count = int(parsed_telegram.hop_count)
+                    t.tpci = str(parsed_telegram.tpci[0])
+                    t.tpci_sequence = int(parsed_telegram.tpci[1])
+                    t.apci = str(parsed_telegram.apci)
+                    t.payload_data = str(parsed_telegram.payload_data)
+                    t.payload_length = int(parsed_telegram.payload_length)
+                    t.is_manipulated = 0
                     self.telegram_queue.put(t)
                 else:
                     t = AckTelegram()
-                    t.timestamp = timestamp
-                    t.apci = parsed_telegram.acknowledgement
-                    t.cemi = cemi.hex()
+                    t.timestamp = str(timestamp)
+                    t.apci = str(parsed_telegram.acknowledgement)
+                    t.is_manipulated = 0
                     self.telegram_queue.put(t)
             except Exception as ex:
-                LOGGER.error("Failed to parse telegram: {}".format(str(message.cemi.raw_frame.hex())))
+                LOGGER.error("Failed to parse telegram: {0} with following exception: {1}".format(str(message.cemi.raw_frame.hex()), ex))
                 t = UnknownTelegram()
-                t.timestamp = timestamp
-                t.cemi = message.cemi.raw_frame.hex()
+                t.timestamp = str(timestamp)
+                t.cemi = str(message.cemi.raw_frame.hex())
                 self.telegram_queue.put(t)
