@@ -4,10 +4,10 @@
 
 ## 2. Clone repository
 1. Switch to home directory `cd ~`
-2. `git clone https://git.informatik.uni-rostock.de/iuk/security-projects/software/log-ip-to-db.git`
+2. `git clone https://git.informatik.uni-rostock.de/iuk/security-projects/software/building-automation/log-ip-to-db.git`
 
 ## 3. Install dependencies
-1. `pip3 install --user git+https://git.informatik.uni-rostock.de/iuk/security-projects/software/knx-parser.git`
+1. `pip3 install --user git+https://git.informatik.uni-rostock.de/iuk/security-projects/software/building-automation/knx-parser.git`
 2. `pip3 install --user mysql-connector`
 
 ## 4. Add to autostart
